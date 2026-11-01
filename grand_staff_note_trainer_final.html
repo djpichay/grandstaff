@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grand Staff Ledger Line Quiz</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Petemoss&display=swap" rel="stylesheet">
+    <!-- Tone.js for Web Audio Synthesizer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .music-font {
+            font-family: 'Petemoss', cursive, serif;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col items-center justify-center p-2 sm:p-4">
+
+    <!-- Container -->
+    <div class="w-full max-w-2xl h-full max-h-[96vh] glass-panel rounded-2xl shadow-2xl overflow-hidden p-3 sm:p-5 flex flex-col items-center justify-between relative">
+        
+        <!-- Header -->
+        <div class="text-center w-full relative">
+            <h1 class="text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400">
+                Grand Staff Note Trainer
+            </h1>
+            <div class="flex items-center justify-center gap-3 mt-1">
+                <p id="active-notes-subtitle" class="text-xs text-slate-400">
+                    Active: <span id="active-count" class="text-indigo-300 font-semibold">3 notes selected</span>
+                </p>
+                <button onclick="openSetupModal()" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 px-2 py-1 rounded-md transition-all flex items-center gap-1">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Change Notes</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Scoreboard Bar -->
+        <div class="w-full grid grid-cols-3 gap-2 my-2 text-center">
+            <div class="bg-slate-800/80 rounded-lg p-2 border border-slate-700/50">
+                <span class="text-[10px] text-slate-400 block uppercase tracking-wider font-semibold">Score</span>
+                <span id="score-display" class="text-lg sm:text-xl font-bold text-blue-400">0</span>
+            </div>
+            <div class="bg-slate-800/80 rounded-lg p-2 border border-slate-700/50">
+                <span class="text-[10px] text-slate-400 block uppercase tracking-wider font-semibold">Streak</span>
+                <span id="streak-display" class="text-lg sm:text-xl font-bold text-amber-400">0 🔥</span>
+            </div>
+            <div class="bg-slate-800/80 rounded-lg p-2 border border-slate-700/50">
+                <span class="text-[10px] text-slate-400 block uppercase tracking-wider font-semibold">Accuracy</span>
+                <span id="accuracy-display" class="text-lg sm:text-xl font-bold text-emerald-400">100%</span>
+            </div>
+        </div>
+
+        <!-- Visual Staff SVG Display -->
+        <div class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-2 sm:p-3 shadow-inner flex items-center justify-center relative flex-1 min-h-0">
+            <svg id="staff-svg" viewBox="0 0 500 320" class="w-full h-full max-w-[440px] object-contain">
+                <defs>
+                    <!-- Shadow Filters for Graphic Elements -->
+                    <filter id="glow-correct" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#10B981" flood-opacity="0.8"/>
+                    </filter>
+                    <filter id="glow-incorrect" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#EF4444" flood-opacity="0.8"/>
+                    </filter>
+                </defs>
+                <!-- SVG Content rendered dynamically via JS -->
+            </svg>
+        </div>
+
+        <!-- Dynamic Piano Keyboard Container -->
+        <div class="w-full mt-2 bg-slate-950 p-2 sm:p-3 rounded-xl border border-slate-800 shadow-inner flex flex-col items-center">
+            <div class="text-[11px] font-semibold text-slate-400 mb-1 tracking-wider uppercase flex items-center gap-1">
+                <i class="fa-solid fa-keyboard text-indigo-400"></i>
+                Tap the Piano Key
+            </div>
+            <!-- Interactive 2-Octave Piano Keyboard -->
+            <div id="piano-keyboard" class="relative flex justify-center items-start select-none w-full max-w-md h-24 sm:h-28">
+                <!-- Injected dynamically via JS -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Note Selection / Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-lg w-full p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto">
+            <div class="text-center mb-5">
+                <h2 class="text-xl font-bold text-white flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-music text-indigo-400"></i>
+                    Select Practice Notes
+                </h2>
+                <p class="text-xs text-slate-400 mt-1">Choose which notes you want to be tested on.</p>
+            </div>
+
+            <!-- Quick Action Preset Choices -->
+            <div class="flex flex-col gap-2 mb-4">
+                <button onclick="selectPreset('guide')" class="w-full text-xs text-left bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 border border-indigo-500/40 p-3 rounded-xl transition-all flex items-center justify-between">
+                    <div>
+                        <div class="font-bold">Guide lines</div>
+                        <div class="text-[11px] text-indigo-300/80">Bass F, Middle C, Treble G</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-70"></i>
+                </button>
+                <button onclick="selectPreset('bassUpper')" class="w-full text-xs text-left bg-amber-900/40 hover:bg-amber-800/60 text-amber-200 border border-amber-500/40 p-3 rounded-xl transition-all flex items-center justify-between">
+                    <div>
+                        <div class="font-bold">Upper Bass Staff Notes</div>
+                        <div class="text-[11px] text-amber-300/80">Bass G, Bass A, Bass B</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-70"></i>
+                </button>
+                <button onclick="selectPreset('afterCbeforeG')" class="w-full text-xs text-left bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 p-3 rounded-xl transition-all flex items-center justify-between">
+                    <div>
+                        <div class="font-bold">Notes after Middle C but before Treble G</div>
+                        <div class="text-[11px] text-slate-400">D4, E4, F4</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-70"></i>
+                </button>
+            </div>
+
+            <div class="flex gap-2 mb-4 justify-end">
+                <button onclick="selectPreset('all')" class="text-xs text-slate-400 hover:text-slate-200 underline">Select All</button>
+            </div>
+
+            <!-- Note Checkboxes List -->
+            <div class="space-y-2 mb-6" id="note-checkboxes">
+                <!-- Checkboxes generated dynamically -->
+            </div>
+
+            <!-- Action Controls -->
+            <button onclick="confirmSetup()" class="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-semibold py-3 rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2">
+                <span>Start Practice</span>
+                <i class="fa-solid fa-play text-xs"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Library of note positions with specific piano key indices
+        const ALL_NOTES = [
+            {
+                id: 'Treble G',
+                letter: 'G',
+                keyId: 'G4',
+                name: 'Treble G (G4)',
+                sub: '2nd Line of Treble Staff',
+                yPosition: 87,
+                ledgerY: [],
+                explanation: 'G (G4) is the G key above Middle C, sitting on the 2nd line of the Treble staff.',
+                defaultSelected: true,
+                category: 'guide'
+            },
+            {
+                id: 'Middle C',
+                letter: 'C',
+                keyId: 'C4',
+                name: 'Middle C (C4)',
+                sub: 'Ledger Line Between Staves',
+                yPosition: 160,
+                ledgerY: [160],
+                explanation: 'Middle C (C4) is the center C key on the piano keyboard.',
+                defaultSelected: true,
+                category: 'guide'
+            },
+            {
+                id: 'Bass B',
+                letter: 'B',
+                keyId: 'B3',
+                name: 'Bass B (B3)',
+                sub: 'Space Above Bass Staff',
+                yPosition: 203,
+                ledgerY: [],
+                explanation: 'B (B3) is the white key directly below Middle C.',
+                defaultSelected: true,
+                category: 'bassUpper'
+            },
+            {
+                id: 'Bass A',
+                letter: 'A',
+                name: 'Bass A (A3)',
+                keyId: 'A3',
+                sub: '5th (Top) Line of Bass Staff',
+                yPosition: 218,
+                ledgerY: [],
+                explanation: 'A (A3) is two white keys below Middle C.',
+                defaultSelected: true,
+                category: 'bassUpper'
+            },
+            {
+                id: 'Bass G',
+                letter: 'G',
+                keyId: 'G3',
+                name: 'Bass G (G3)',
+                sub: '4th Space of Bass Staff',
+                yPosition: 225.5,
+                ledgerY: [],
+                explanation: 'G (G3) is the G key below Middle C.',
+                defaultSelected: true,
+                category: 'bassUpper'
+            },
+            {
+                id: 'Bass F',
+                letter: 'F',
+                keyId: 'F3',
+                name: 'Bass F (F3)',
+                sub: '4th Line of Bass Staff',
+                yPosition: 233,
+                ledgerY: [],
+                explanation: 'F (F3) is the F key below Middle C, corresponding to the 4th line of the Bass staff.',
+                defaultSelected: true,
+                category: 'guide'
+            },
+            {
+                id: 'Treble D',
+                letter: 'D',
+                keyId: 'D4',
+                name: 'Treble D (D4)',
+                sub: 'Space Below Treble Staff',
+                yPosition: 117,
+                ledgerY: [],
+                explanation: 'D (D4) is the white key directly above Middle C.',
+                defaultSelected: false,
+                category: 'afterCbeforeG'
+            },
+            {
+                id: 'Treble E',
+                letter: 'E',
+                keyId: 'E4',
+                name: 'Treble E (E4)',
+                sub: '1st Line of Treble Staff',
+                yPosition: 102,
+                ledgerY: [],
+                explanation: 'E (E4) is two white keys above Middle C.',
+                defaultSelected: false,
+                category: 'afterCbeforeG'
+            },
+            {
+                id: 'Treble F',
+                letter: 'F',
+                keyId: 'F4',
+                name: 'Treble F (F4)',
+                sub: '1st Space of Treble Staff',
+                yPosition: 94.5,
+                ledgerY: [],
+                explanation: 'F (F4) is three white keys above Middle C.',
+                defaultSelected: false,
+                category: 'afterCbeforeG'
+            }
+        ];
+
+        // Piano Keyboard Data Structure (F3 to G4 with all black keys included)
+        const PIANO_KEYS = [
+            { id: 'F3', letter: 'F', type: 'white', label: 'F' },
+            { id: 'F#3', letter: 'F#', type: 'black' },
+            { id: 'G3', letter: 'G', type: 'white', label: 'G' },
+            { id: 'G#3', letter: 'G#', type: 'black' },
+            { id: 'A3', letter: 'A', type: 'white', label: 'A' },
+            { id: 'A#3', letter: 'A#', type: 'black' },
+            { id: 'B3', letter: 'B', type: 'white', label: 'B' },
+            { id: 'C4', letter: 'C', type: 'white', label: 'C', isMiddleC: true },
+            { id: 'C#4', letter: 'C#', type: 'black' },
+            { id: 'D4', letter: 'D', type: 'white', label: 'D' },
+            { id: 'D#4', letter: 'D#', type: 'black' },
+            { id: 'E4', letter: 'E', type: 'white', label: 'E' },
+            { id: 'F4', letter: 'F', type: 'white', label: 'F' },
+            { id: 'F#4', letter: 'F#', type: 'black' },
+            { id: 'G4', letter: 'G', type: 'white', label: 'G' },
+            { id: 'G#4', letter: 'G#', type: 'black' }
+        ];
+
+        let activeNotes = [];
+        let currentNote = null;
+        let score = 0;
+        let totalAttempts = 0;
+        let streak = 0;
+        let answered = false;
+        let autoAdvanceTimer = null;
+
+        // Initialize Web Audio Synthesizer using Tone.js
+        let synth = null;
+        function getSynth() {
+            if (!synth && window.Tone) {
+                synth = new Tone.Synth({
+                    oscillator: { type: "triangle" },
+                    envelope: {
+                        attack: 0.005,
+                        decay: 0.8,
+                        sustain: 0.1,
+                        release: 0.8
+                    }
+                }).toDestination();
+                synth.volume.value = -6; // Normal clear volume
+            }
+            return synth;
+        }
+
+        function playNoteSound(noteKeyId) {
+            try {
+                if (window.Tone) {
+                    if (Tone.context.state !== 'running') {
+                        Tone.start();
+                    }
+                    const s = getSynth();
+                    if (s) {
+                        s.triggerAttackRelease(noteKeyId, "8n");
+                    }
+                }
+            } catch (e) {
+                console.log("Audio play error:", e);
+            }
+        }
+
+        // Initialize App
+        window.onload = () => {
+            renderSetupCheckboxes();
+            openSetupModal();
+        };
+
+        function renderSetupCheckboxes() {
+            const container = document.getElementById('note-checkboxes');
+            container.innerHTML = ALL_NOTES.map(note => `
+                <label class="flex items-center justify-between p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 cursor-pointer hover:bg-slate-800 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" id="chk-${note.id}" value="${note.id}" ${note.defaultSelected ? 'checked' : ''} 
+                               class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-900 border-slate-600">
+                        <div>
+                            <div class="text-sm font-semibold text-slate-100">${note.name}</div>
+                            <div class="text-xs text-slate-400">${note.sub}</div>
+                        </div>
+                    </div>
+                </label>
+            `).join('');
+        }
+
+        function openSetupModal() {
+            document.getElementById('setup-modal').classList.remove('hidden');
+        }
+
+        function selectPreset(type) {
+            ALL_NOTES.forEach(note => {
+                const chk = document.getElementById(`chk-${note.id}`);
+                if (!chk) return;
+                
+                if (type === 'guide') {
+                    chk.checked = note.category === 'guide';
+                } else if (type === 'bassUpper') {
+                    chk.checked = note.category === 'bassUpper';
+                } else if (type === 'afterCbeforeG') {
+                    chk.checked = note.category === 'afterCbeforeG';
+                } else if (type === 'all') {
+                    chk.checked = true;
+                }
+            });
+        }
+
+        function confirmSetup() {
+            const checked = ALL_NOTES.filter(n => {
+                const chk = document.getElementById(`chk-${n.id}`);
+                return chk && chk.checked;
+            });
+
+            if (checked.length === 0) {
+                alert('Please select at least one note to practice!');
+                return;
+            }
+
+            activeNotes = checked;
+            document.getElementById('active-count').innerText = `${activeNotes.length} note${activeNotes.length > 1 ? 's' : ''} selected`;
+            document.getElementById('setup-modal').classList.add('hidden');
+            
+            renderPianoKeyboard();
+            loadNewQuestion();
+        }
+
+        function nextQuestion() {
+            if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+            loadNewQuestion();
+        }
+
+        function renderPianoKeyboard() {
+            const container = document.getElementById('piano-keyboard');
+            let whiteIndex = 0;
+            
+            // Total white keys = 9 (F3, G3, A3, B3, C4, D4, E4, F4, G4)
+            const whiteKeyWidthPercent = 100 / 9;
+            let html = '';
+            
+            PIANO_KEYS.forEach((key) => {
+                if (key.type === 'white') {
+                    const isMidC = key.isMiddleC;
+                    html += `
+                        <button onclick="checkAnswerKey('${key.id}')" id="key-${key.id}" 
+                                class="piano-key-white relative flex flex-col justify-end items-center pb-2 rounded-b-md border border-slate-400 bg-gradient-to-b from-white via-slate-50 to-slate-200 text-slate-800 font-bold hover:bg-indigo-100 transition-all duration-100 shadow-md cursor-pointer"
+                                style="width: ${whiteKeyWidthPercent}%; height: 100%; margin-right: 1px; z-index: 10;">
+                            ${isMidC ? '<span class="w-2 h-2 rounded-full bg-rose-500 mb-1"></span>' : ''}
+                            <span class="text-xs sm:text-sm font-bold ${isMidC ? 'text-rose-600 font-black' : 'text-slate-700'}">${key.label}</span>
+                        </button>
+                    `;
+                    whiteIndex++;
+                } else {
+                    // Calculate left percentage offset for black keys
+                    const leftPercent = (whiteIndex * whiteKeyWidthPercent) - (whiteKeyWidthPercent * 0.32);
+                    html += `
+                        <button disabled id="key-${key.id}" 
+                                class="piano-key-black absolute rounded-b-sm bg-gradient-to-b from-slate-900 to-slate-800 border border-black shadow-lg"
+                                style="width: ${whiteKeyWidthPercent * 0.64}%; height: 60%; left: ${leftPercent}%; z-index: 20; opacity: 0.85;">
+                        </button>
+                    `;
+                }
+            });
+
+            container.innerHTML = html;
+        }
+
+        function loadNewQuestion() {
+            answered = false;
+            if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+
+            // Pick a random note from activeNotes
+            let nextNote;
+            if (activeNotes.length > 1) {
+                do {
+                    nextNote = activeNotes[Math.floor(Math.random() * activeNotes.length)];
+                } while (nextNote === currentNote);
+            } else {
+                nextNote = activeNotes[0];
+            }
+            currentNote = nextNote;
+
+            // Reset Piano Key states
+            PIANO_KEYS.forEach(key => {
+                const btn = document.getElementById(`key-${key.id}`);
+                if (btn && key.type === 'white') {
+                    btn.disabled = false;
+                    btn.className = `piano-key-white relative flex flex-col justify-end items-center pb-2 rounded-b-md border border-slate-400 bg-gradient-to-b from-white via-slate-50 to-slate-200 text-slate-800 font-bold hover:bg-indigo-100 transition-all duration-100 shadow-md cursor-pointer`;
+                }
+            });
+
+            // Draw Grand Staff with target note
+            drawStaff(currentNote);
+        }
+
+        // SVG Staff & Note Drawing Engine
+        function drawStaff(note, status = 'default') {
+            const svg = document.getElementById('staff-svg');
+            
+            let noteColor = '#38BDF8'; // Sky Blue
+            let filterAttr = '';
+
+            if (status === 'correct') {
+                noteColor = '#10B981'; // Emerald
+                filterAttr = 'filter="url(#glow-correct)"';
+            } else if (status === 'incorrect') {
+                noteColor = '#EF4444'; // Rose
+                filterAttr = 'filter="url(#glow-incorrect)"';
+            }
+
+            // Render Treble & Bass Staff Lines, Brace, Clefs, Ledger Lines & Note
+            let ledgerLinesSvg = '';
+            if (note.ledgerY && note.ledgerY.length > 0) {
+                note.ledgerY.forEach(y => {
+                    ledgerLinesSvg += `<line x1="225" y1="${y}" x2="275" y2="${y}" stroke="${noteColor}" stroke-width="2.5" stroke-linecap="round" />`;
+                });
+            }
+
+            svg.innerHTML = `
+                <defs>
+                    <filter id="glow-correct" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#10B981" flood-opacity="0.8"/>
+                    </filter>
+                    <filter id="glow-incorrect" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#EF4444" flood-opacity="0.8"/>
+                    </filter>
+                </defs>
+
+                <!-- Grand Staff Connectors -->
+                <line x1="50" y1="42" x2="50" y2="278" stroke="#64748B" stroke-width="3"/>
+                <path d="M 45 42 Q 35 160 45 278" fill="none" stroke="#94A3B8" stroke-width="4"/>
+
+                <!-- Treble Staff (5 lines: F5, D5, B4, G4, E4) -->
+                <g stroke="#475569" stroke-width="1.5">
+                    <line x1="50" y1="42" x2="470" y2="42"/>
+                    <line x1="50" y1="57" x2="470" y2="57"/>
+                    <line x1="50" y1="72" x2="470" y2="72"/>
+                    <line x1="50" y1="87" x2="470" y2="87"/>
+                    <line x1="50" y1="102" x2="470" y2="102"/>
+                </g>
+
+                <!-- Bass Staff (5 lines: A3, F3, D3, B2, G2) -->
+                <g stroke="#475569" stroke-width="1.5">
+                    <line x1="50" y1="218" x2="470" y2="218"/>
+                    <line x1="50" y1="233" x2="470" y2="233"/>
+                    <line x1="50" y1="248" x2="470" y2="248"/>
+                    <line x1="50" y1="263" x2="470" y2="263"/>
+                    <line x1="50" y1="278" x2="470" y2="278"/>
+                </g>
+
+                <!-- G-Clef (Treble) Typography -->
+                <text x="60" y="100" fill="#CBD5E1" font-size="78" font-family="'Petemoss', cursive, serif" select-none>𝄞</text>
+
+                <!-- F-Clef (Bass) Typography with dots accurately framing 4th line (F3, Y=233) -->
+                <text x="60" y="260" fill="#CBD5E1" font-size="60" font-family="'Petemoss', cursive, serif" select-none>𝄢</text>
+
+                <!-- Target Ledger Lines -->
+                ${ledgerLinesSvg}
+
+                <!-- Note Head & Stem -->
+                <g ${filterAttr}>
+                    <!-- Elliptical Note Head -->
+                    <ellipse cx="250" cy="${note.yPosition}" rx="9.5" ry="7" fill="${noteColor}" transform="rotate(-20 250 ${note.yPosition})"/>
+                    
+                    <!-- Stem -->
+                    ${note.yPosition >= 160 
+                        ? `<line x1="258" y1="${note.yPosition - 2}" x2="258" y2="${note.yPosition - 36}" stroke="${noteColor}" stroke-width="2.5" stroke-linecap="round"/>` 
+                        : `<line x1="242" y1="${note.yPosition + 2}" x2="242" y2="${note.yPosition + 36}" stroke="${noteColor}" stroke-width="2.5" stroke-linecap="round"/>`
+                    }
+                </g>
+            `;
+        }
+
+        function checkAnswerKey(selectedKeyId) {
+            if (answered) return;
+            answered = true;
+            totalAttempts++;
+
+            // Play the piano note sound for the key that was pressed
+            playNoteSound(selectedKeyId);
+
+            // Disable all keys
+            PIANO_KEYS.forEach(key => {
+                const btn = document.getElementById(`key-${key.id}`);
+                if (btn) btn.disabled = true;
+            });
+
+            const targetKeyId = currentNote.keyId;
+
+            if (selectedKeyId === targetKeyId) {
+                // Correct Answer
+                score++;
+                streak++;
+                drawStaff(currentNote, 'correct');
+
+                const keyBtn = document.getElementById(`key-${selectedKeyId}`);
+                if (keyBtn) {
+                    keyBtn.className = 'piano-key-white relative flex flex-col justify-end items-center pb-2 rounded-b-md border-2 border-emerald-500 bg-gradient-to-b from-emerald-100 to-emerald-400 text-emerald-950 font-extrabold shadow-lg';
+                }
+            } else {
+                // Incorrect Answer
+                streak = 0;
+                drawStaff(currentNote, 'incorrect');
+
+                const wrongKeyBtn = document.getElementById(`key-${selectedKeyId}`);
+                if (wrongKeyBtn) {
+                    wrongKeyBtn.className = 'piano-key-white relative flex flex-col justify-end items-center pb-2 rounded-b-md border-2 border-rose-500 bg-gradient-to-b from-rose-100 to-rose-400 text-rose-950 font-extrabold shadow-lg';
+                }
+
+                // Highlight correct key in emerald green
+                const correctKeyBtn = document.getElementById(`key-${targetKeyId}`);
+                if (correctKeyBtn) {
+                    correctKeyBtn.className = 'piano-key-white relative flex flex-col justify-end items-center pb-2 rounded-b-md border-2 border-emerald-500 bg-gradient-to-b from-emerald-100 to-emerald-400 text-emerald-950 font-extrabold shadow-lg';
+                }
+            }
+
+            // Update stats
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('streak-display').innerText = `${streak} 🔥`;
+            const accuracy = Math.round((score / totalAttempts) * 100);
+            document.getElementById('accuracy-display').innerText = `${accuracy}%`;
+
+            // Auto-advance to the next question after 1.2 seconds
+            autoAdvanceTimer = setTimeout(() => {
+                loadNewQuestion();
+            }, 1200);
+        }
+    </script>
+</body>
+</html>
